@@ -80,6 +80,10 @@ class Pagination(unittest.TestCase):
         threads,failures,capped=read_threads(service,14,150,lambda message:None)
         self.assertEqual(len(threads),1);self.assertEqual(failures,1);self.assertFalse(capped)
         self.assertEqual(api.list.call_args.kwargs["pageToken"],"p2")
+        for call in api.list.call_args_list:
+            query = call.kwargs["q"].split()
+            for exclusion in ("-in:spam", "-in:trash", "-category:social", "-category:promotions"):
+                self.assertIn(exclusion, query)
     def test_cap_reported(self):
         from unittest.mock import MagicMock
         service=MagicMock();api=service.users.return_value.threads.return_value
