@@ -14,7 +14,12 @@ from scanner import decode_message, normalize
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 SERVICE = "personal-scanner-gmail"
 
-def gmail_service(credentials_path, authorize=False):
+def auth_key(account_id):
+    # Preserve the existing authorization for the default account.
+    return "oauth" if account_id == "default" else f"oauth:{account_id}"
+
+def gmail_service(credentials_path, authorize=False, account_id="default", expected_email=""):
+
     if sys.platform != "darwin":
         raise RuntimeError("Live Gmail access is configured for macOS Keychain. Demo works on other systems.")
     import keyring
@@ -25,20 +30,26 @@ def gmail_service(credentials_path, authorize=False):
     from googleapiclient.discovery import build
     # Explicit Keychain backend: no plaintext fallback.
     keyring.set_keyring(Keyring())
-    stored = keyring.get_password(SERVICE, "oauth")
+    stored = keyring.get_password(SERVICE, auth_key(account_id))
     creds = Credentials.from_authorized_user_info(json.loads(stored), SCOPES) if stored else None
     if creds and creds.expired and creds.refresh_token:
         creds.refresh(Request())
     if not creds or not creds.valid:
         if not authorize:
-            raise RuntimeError("Authorize Gmail first: python3 app.py --authorize")
+            raise RuntimeError(f"Authorize this Gmail first: python3 app.py --authorize --account {account_id}")
         if not Path(credentials_path).is_file():
             raise RuntimeError("Save your Google Desktop OAuth client as credentials.json first. See README.md.")
         flow = InstalledAppFlow.from_client_secrets_file(str(credentials_path), SCOPES)
         creds = flow.run_local_server(host="127.0.0.1", port=0, timeout_seconds=180,
-                                     authorization_prompt_message="Complete authorization in your browser.")
-    keyring.set_password(SERVICE, "oauth", creds.to_json())
-    return build("gmail", "v1", credentials=creds, cache_discovery=False)
+                                     authorization_prompt_message="Complete authorization in your browser.",
+                                     prompt="select_account", **({"login_hint": expected_email} if expected_email else {}))
+    service = build("gmail", "v1", credentials=creds, cache_discovery=False)
+    if expected_email:
+        actual = service.users().getProfile(userId="me").execute(num_retries=2)["emailAddress"]
+        if actual.casefold() != expected_email.casefold():
+            raise RuntimeError("The authorized Gmail does not match this account's configured email. Use --forget-auth --account followed by --authorize --account for this account.")
+    keyring.set_password(SERVICE, auth_key(account_id), creds.to_json())
+    return service
 
 def read_threads(service, days, limit, progress):
     found, page = [], None
