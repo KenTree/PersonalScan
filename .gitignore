@@ -1,0 +1,18 @@
+.venv/
+__pycache__/
+credentials.json
+config.json
+token*.json
+*.log
+
+# Local documentation: keep out of public repositories.
+/README.md
+/REQUIREMENTS.md
+
+# Local secrets and workstation files.
+.env
+.env.*
+!.env.example
+.DS_Store
+*.pem
+*.key

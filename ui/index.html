@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Personal Scanner</title><link rel="stylesheet" href="/style.css"><script src="/ui.js" defer></script></head>
+<body><main>
+<header><div><p class="eyebrow">YOUR INBOX, WITH CONTEXT</p><h1>Personal Scanner<span>.</span></h1><p class="subtitle">The messages worth your attention.</p></div><div class="local">Processing on this computer</div></header>
+<section class="toolbar"><div><span id="mode" class="badge">Loading</span><span id="engine" class="badge"></span><p id="scope"></p></div><button id="scan">Scan Gmail</button></section>
+<p id="status" role="status">Opening dashboard…</p><p id="error" role="alert"></p><p id="last"></p>
+<section id="stats" class="stats"></section>
+<section class="controls"><div id="filters"><button class="filter active" data-category="All">All notable</button><button class="filter" data-category="Playtest">Playtests</button><button class="filter" data-category="Application update">Applications</button><button class="filter" data-category="Mentor">Mentor</button><button class="filter" data-category="Credit card">Credit cards</button></div><label><input id="unread" type="checkbox"> Unread only</label></section>
+<section id="items" class="items"><div class="empty">Run a scan to see your digest.</div></section>
+<details class="audit"><summary id="audit-title">Excluded messages</summary><p>Review these to spot messages the prototype may have missed.</p><div id="excluded"></div></details>
+<footer>Gmail read-only · No tracking pixels loaded · No cloud AI<br>Sender matching helps relevance; it does not verify sender identity. Check payment requests in your bank account.</footer>
+</main></body></html>
