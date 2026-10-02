@@ -43,7 +43,7 @@ def gmail_service(credentials_path, authorize=False):
 def read_threads(service, days, limit, progress):
     found, page = [], None
     while len(found) < limit:
-        response = service.users().threads().list(userId="me", q=f"newer_than:{days}d -in:spam -in:trash",
+        response = service.users().threads().list(userId="me", q=f"newer_than:{days}d -in:spam -in:trash -category:social -category:promotions",
                     maxResults=min(100, limit-len(found)), pageToken=page).execute(num_retries=2)
         found.extend(response.get("threads", []))
         page = response.get("nextPageToken")
