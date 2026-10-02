@@ -16,3 +16,20 @@ token*.json
 .DS_Store
 *.pem
 *.key
+
+# Private overrides, downloaded OAuth clients, and local exports.
+config.*.json
+!config.example.json
+credentials*.json
+client_secret*.json
+*.local
+*.local.*
+/local/
+/private/
+/exports/
+/mailbox/
+*.mbox
+*.eml
+*.p12
+*.pfx
+.aws/
