@@ -1,16 +1,10 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Personal Scanner</title><link rel="stylesheet" href="/style.css"><script src="/ui.js" defer></script></head>
-<body>
-<header class="site-header"><nav class="navigation" aria-label="Main navigation"><button class="wordmark" data-scroll="scan-section" aria-label="Personal Scanner home">PS<span>.</span></button><div class="nav-links"><button class="active" data-scroll="scan-section">Scan</button><button data-scroll="digest-section">Digest</button><button data-scroll="excluded-section">Excluded</button></div></nav></header>
-<main id="main"><section id="scan-section" class="scan-section">
-
-<div class="hero-heading fade-section"><div><p class="eyebrow">YOUR INBOX, WITH CONTEXT</p><h1>Less noise.<br><span>More clarity.</span></h1><p class="subtitle">Personal Scanner brings the messages worth your attention into focus.</p></div><div class="local">Processing on this computer</div></div>
-<section class="toolbar fade-section"><div><span id="mode" class="badge">Loading</span><span id="engine" class="badge"></span><p id="scope"></p></div><div class="scan-options"><label for="max-threads">Thread limit (1–150)</label><input id="max-threads" type="number" min="1" max="150" step="1" value="40" required><button id="scan">Scan Gmail</button></div></section>
-<p id="status" role="status">Opening dashboard…</p><p id="error" role="alert"></p><p id="last"></p>
-<section id="stats" class="stats"></section></section>
-<section id="digest-section" class="digest-section"><div class="section-heading fade-section"><div><p class="eyebrow">THE SIGNAL</p><h2>Your digest</h2></div><p class="section-note">The important threads, in one place.</p></div>
-<section class="controls"><div id="filters"><button class="filter active" data-category="All">All notable</button><button class="filter" data-category="Playtest">Playtests</button><button class="filter" data-category="Application update">Applications</button><button class="filter" data-category="Mentor">Mentor</button><button class="filter" data-category="Credit card">Credit cards</button></div><label><input id="unread" type="checkbox"> Unread only</label></section>
-<section id="items" class="items"><div class="empty">Run a scan to see your digest.</div></section>
-</section><details id="excluded-section" class="audit fade-section"><summary id="audit-title">Excluded messages</summary><p>Review these to spot messages the prototype may have missed.</p><div id="excluded"></div></details>
-<footer>Gmail read-only · No tracking pixels loaded · No cloud AI<br>Sender matching helps relevance; it does not verify sender identity. Check payment requests in your bank account.</footer>
-</main></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Personal Scanner</title>
+  <script type="module" src="/src/main.jsx"></script>
+</head>
+<body><div id="root"></div></body>
+</html>

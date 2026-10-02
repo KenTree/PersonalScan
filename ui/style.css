@@ -2,3 +2,8 @@
 @media(max-width:1000px){.toolbar{align-items:flex-start;flex-direction:column}.hero-heading{align-items:flex-start;flex-direction:column}.card{padding:24px}.nav-links{gap:28px}}
 @media(max-width:700px){html{scroll-padding-top:96px}main,.navigation{width:calc(100% - 40px)}main{padding-top:120px}.navigation{height:76px}.navigation .wordmark{font-size:22px}.nav-links{gap:18px}.nav-links button{font-size:12px}h1{font-size:48px;letter-spacing:-2px}.subtitle{font-size:16px}.toolbar{padding:20px}.stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.stat{padding:18px}.section-heading{align-items:flex-start;flex-direction:column;gap:16px}.section-heading h2{font-size:34px}.controls{align-items:flex-start;flex-direction:column}.items{grid-template-columns:1fr;gap:24px}.card{padding:26px}.digest-section{padding-top:40px}.scan-options{gap:10px}.scan-options label{flex-basis:100%}.audit{padding:20px}.local{white-space:normal}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{transition:none!important;animation:none!important}}
+
+/* Header hover changes text only, overriding the shared button hover. */
+.navigation button:hover{background:transparent;color:#fff;transform:none}
+
+.account-field{display:flex;flex-direction:column;gap:6px;flex-basis:100%;min-width:0}.account-field select{width:100%;max-width:340px;min-width:0;padding:10px 12px;border:1px solid #3a3a3a;border-radius:8px;font:inherit;color:#ededed;background:#1e1e1e}.scan-options{max-width:420px}.account-field select:focus-visible{outline:2px solid #ededed;outline-offset:4px}

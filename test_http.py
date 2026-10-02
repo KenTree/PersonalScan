@@ -55,8 +55,42 @@ class DashboardHTTP(unittest.TestCase):
             self.assertEqual(state["counts"]["scanned"], min(limit, 10))
             self.assertEqual(state["incomplete"], limit < 10)
 
+    def test_account_selection_clears_previous_digest(self):
+        headers = {"X-Scanner-Token": self.token}
+        for bad in ("unknown", 4, {}, None):
+            self.assertEqual(self.call("/api/account", "POST", headers, {"account_id": bad})[0], 400)
+        self.assertEqual(self.call("/api/scan", "POST", headers, {"account_id": "unknown"})[0], 400)
+        self.assertEqual(self.call("/api/account", "POST", headers, {"account_id": "demo-personal"})[0], 200)
+        self.assertEqual(self.call("/api/scan", "POST", headers, {"max_threads": 1})[0], 202)
+        for _ in range(100):
+            _, body = self.call("/api/state", headers=headers)
+            if not json.loads(body)["busy"]: break
+            time.sleep(.02)
+        self.assertEqual(self.call("/api/account", "POST", headers, {"account_id": "demo-work"})[0], 200)
+        _, body = self.call("/api/state", headers=headers)
+        state = json.loads(body)
+        self.assertEqual(state["selected_account"], "demo-work")
+        self.assertEqual(state["items"], [])
+        self.assertEqual(state["excluded"], [])
+        self.assertEqual(state["counts"], {})
+        self.assertIsNone(state["last_scan"])
+        self.assertIsNone(state["account_email"])
+        self.assertFalse(state["incomplete"])
+
+    def test_built_frontend_assets(self):
+        import re
+        status, body = self.call("/")
+        self.assertEqual(status, 200)
+        assets = re.findall(r'(?:src|href)="(/assets/[^"]+)"', body.decode())
+        self.assertGreaterEqual(len(assets), 2)
+        for asset in assets:
+            self.assertEqual(self.call(asset)[0], 200)
+        for path in ("/assets/../../config.json", "/assets/../index.html", "/src/main.jsx", "/package.json"):
+            self.assertEqual(self.call(path)[0], 404)
+
     def test_privacy_boundaries(self):
         self.assertEqual(self.call("/api/state")[0], 403)
+        self.assertEqual(self.call("/api/account", "POST", payload={"account_id": "demo-work"})[0], 403)
         self.assertEqual(self.call("/api/state", headers={"Host":"evil.example", "X-Scanner-Token":self.token})[0], 403)
         self.assertEqual(self.call("/api/scan", "POST", {"Origin":"https://evil.example", "X-Scanner-Token":self.token})[0], 403)
         self.assertEqual(self.call("/credentials.json")[0], 404)

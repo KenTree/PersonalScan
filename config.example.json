@@ -1,8 +1,21 @@
 {
   "mentor_emails": [],
-  "riot_domains": ["studio.example"],
-  "bank_domains": ["bank.example", "cards.bank.example", "otherbank.example"],
+  "riot_domains": [
+    "studio.example"
+  ],
+  "bank_domains": [
+    "bank.example",
+    "cards.bank.example",
+    "otherbank.example"
+  ],
   "lookback_days": 14,
   "max_threads": 40,
-  "model": "qwen2.5:3b"
+  "model": "qwen2.5:3b",
+  "gmail_accounts": [
+    {
+      "id": "default",
+      "label": "My Gmail",
+      "email": ""
+    }
+  ]
 }
