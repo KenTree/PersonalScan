@@ -19,8 +19,8 @@ class DashboardHTTP(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.proc.terminate(); cls.proc.wait(timeout=5); cls.proc.stdout.close()
-    def call(self, path, method="GET", headers=None):
-        request = urllib.request.Request(self.base+path, data=b"" if method=="POST" else None,
+    def call(self, path, method="GET", headers=None, payload=None):
+        request = urllib.request.Request(self.base+path, data=(json.dumps(payload).encode() if payload is not None else b"") if method=="POST" else None,
                                          headers=headers or {})
         try:
             with self.opener.open(request, timeout=5) as response: return response.status, response.read()
@@ -38,6 +38,23 @@ class DashboardHTTP(unittest.TestCase):
         self.assertEqual(state["counts"], dict(scanned=10, notable=6, excluded=4, failed=0))
         self.assertIsNone(state["error"])
         self.assertTrue(all(item["url"] is None for item in state["items"]))
+    def test_thread_limit_validation(self):
+        headers = {"X-Scanner-Token": self.token, "Content-Type": "application/json"}
+        for value in (0, -1, 151, 2.5, True, "40", None):
+            with self.subTest(value=value):
+                self.assertEqual(self.call("/api/scan", "POST", headers, {"max_threads": value})[0], 400)
+        for limit in (1, 150):
+            self.assertEqual(self.call("/api/scan", "POST", headers, {"max_threads": limit})[0], 202)
+            for _ in range(100):
+                _, body = self.call("/api/state", headers=headers)
+                state = json.loads(body)
+                if not state["busy"]: break
+                time.sleep(.02)
+            self.assertFalse(state["busy"])
+            self.assertEqual(state["max_threads"], limit)
+            self.assertEqual(state["counts"]["scanned"], min(limit, 10))
+            self.assertEqual(state["incomplete"], limit < 10)
+
     def test_privacy_boundaries(self):
         self.assertEqual(self.call("/api/state")[0], 403)
         self.assertEqual(self.call("/api/state", headers={"Host":"evil.example", "X-Scanner-Token":self.token})[0], 403)

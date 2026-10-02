@@ -30,7 +30,11 @@ async function refresh(){
   try {
     const response=await fetch('/api/state',{headers:{'X-Scanner-Token':token}});
     if(!response.ok) throw new Error('Open the full dashboard URL printed in Terminal, including its token.');
-    state=await response.json();$('mode').textContent=state.demo?'FICTIONAL DEMO':'LIVE GMAIL';$('engine').textContent=state.engine;
+    const firstLoad = state === null;
+    state=await response.json();
+    if(firstLoad) $('max-threads').value=state.max_threads;
+    $('max-threads').disabled=state.busy;
+    $('mode').textContent=state.demo?'FICTIONAL DEMO':'LIVE GMAIL';$('engine').textContent=state.engine;
     $('scope').textContent=state.demo?'Sample messages only · The contact’s demo address is fictional':`${state.account_email?state.account_email+' · ':''}Last ${state.lookback_days} days · Up to ${state.max_threads} threads · ${state.mentor_configured?'Mentor address configured':'Add The contact’s address in config.json'}`;
     $('scan').textContent=state.busy?'Scanning…':(state.demo?'Scan demo messages':'Scan Gmail');$('scan').disabled=state.busy;
     $('status').textContent=(state.incomplete?'INCOMPLETE · ':'')+state.status;$('error').textContent=state.error||'';
@@ -39,7 +43,42 @@ async function refresh(){
     if(next!==signature){signature=next;$('stats').replaceChildren();for(const [key,label] of [['scanned','Threads scanned'],['notable','Notable threads'],['excluded','Excluded threads'],['failed','Retrieval failures']]){const stat=node('div',undefined,'stat');stat.append(node('strong',state.counts[key]||0),node('span',label));$('stats').append(stat);}renderItems();}
   }catch(error){$('error').textContent=error.message;$('scan').disabled=true;}
 }
-$('scan').addEventListener('click',async()=>{ $('scan').disabled=true;try{const response=await fetch('/api/scan',{method:'POST',headers:{'X-Scanner-Token':token}});if(!response.ok)throw new Error('Could not start scan.');await refresh();}catch(error){$('error').textContent=error.message;} });
+$('scan').addEventListener('click',async()=>{
+  const input=$('max-threads');
+  const limit=Number(input.value);
+  if(!input.reportValidity()) return;
+  if(!Number.isInteger(limit)||limit<1||limit>150){$('error').textContent='Thread limit must be a whole number from 1 to 150.';return;}
+  $('scan').disabled=true;input.disabled=true;
+  try{
+    const response=await fetch('/api/scan',{method:'POST',headers:{'X-Scanner-Token':token,'Content-Type':'application/json'},body:JSON.stringify({max_threads:limit})});
+    if(!response.ok){const result=await response.json();throw new Error(result.error||'Could not start scan.');}
+    await refresh();
+  }catch(error){$('error').textContent=error.message;$('scan').disabled=false;input.disabled=false;}
+});
 $('filters').addEventListener('click',event=>{if(!event.target.dataset.category)return;category=event.target.dataset.category;document.querySelectorAll('.filter').forEach(button=>button.classList.toggle('active',button.dataset.category===category));if(state)renderItems();});
 $('unread').addEventListener('change',()=>{if(state)renderItems();});
 refresh();setInterval(refresh,1500);
+
+const navigationButtons=document.querySelectorAll('.nav-links [data-scroll]');
+function updateNavigation(){
+  document.querySelector('.site-header').classList.toggle('scrolled',window.scrollY>24);
+  let active='scan-section';
+  for(const id of ['scan-section','digest-section','excluded-section']){
+    if($(id).getBoundingClientRect().top<=window.innerHeight*.35) active=id;
+  }
+  for(const button of navigationButtons){
+    const selected=button.dataset.scroll===active;
+    button.classList.toggle('active',selected);
+    if(selected) button.setAttribute('aria-current','location');else button.removeAttribute('aria-current');
+  }
+}
+document.querySelector('.navigation').addEventListener('click',event=>{
+  const button=event.target.closest('[data-scroll]');
+  if(!button) return;
+  const target=$(button.dataset.scroll);
+  if(target.tagName==='DETAILS') target.open=true;
+  target.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+});
+window.addEventListener('scroll',updateNavigation,{passive:true});
+window.addEventListener('resize',updateNavigation);
+updateNavigation();

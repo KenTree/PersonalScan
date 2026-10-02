@@ -20,7 +20,7 @@ def load_config(path):
     for key in ("mentor_emails", "riot_domains", "bank_domains"):
         if not isinstance(config[key], list) or not all(isinstance(x, str) and x.strip() for x in config[key]):
             raise ValueError(f"{key} must be a list of non-empty strings.")
-    for key, high in (("lookback_days", 365), ("max_threads", 1000)):
+    for key, high in (("lookback_days", 365), ("max_threads", 150)):
         if type(config[key]) is not int or not 1 <= config[key] <= high:
             raise ValueError(f"{key} must be between 1 and {high}.")
     if not isinstance(config["model"], str): raise ValueError("model must be a string")
@@ -62,12 +62,13 @@ def main():
     token = secrets.token_urlsafe(32)
     def progress(message):
         with lock: state["status"] = message
-    def scan():
+    def scan(max_threads):
         try:
             progress("Loading fictional examples…" if args.demo else "Connecting to Gmail…")
             effective = {**config}
             if args.demo:
-                threads, failures, capped = demo_threads(), 0, False
+                samples = demo_threads()
+                threads, failures, capped = samples[:max_threads], 0, len(samples) > max_threads
                 effective.update(mentor_emails=["contact@example.com"],
                                  riot_domains=["studio.example"],
                                  bank_domains=["bank.example", "otherbank.example"])
@@ -76,7 +77,7 @@ def main():
                 service = gmail_service(ROOT / "credentials.json")
                 account_email = service.users().getProfile(userId="me").execute(num_retries=2)["emailAddress"]
                 threads, failures, capped = read_threads(service,
-                    config["lookback_days"], config["max_threads"], progress)
+                    config["lookback_days"], max_threads, progress)
             items, excluded = [], []
             ai_failures = 0
             for i, messages in enumerate(threads):
@@ -145,10 +146,22 @@ def main():
             if self.headers.get("Origin") not in (None, expected) or not secrets.compare_digest(self.headers.get("X-Scanner-Token", ""), token):
                 return self.send(403, {"error": "Request blocked"})
             if self.path != "/api/scan": return self.send(404, {"error": "Not found"})
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if not 0 <= length <= 1024:
+                    raise ValueError()
+                payload = json.loads(self.rfile.read(length)) if length else {}
+                if not isinstance(payload, dict):
+                    raise ValueError()
+                max_threads = payload.get("max_threads", config["max_threads"])
+                if type(max_threads) is not int or not 1 <= max_threads <= 150:
+                    raise ValueError()
+            except (ValueError, UnicodeDecodeError):
+                return self.send(400, {"error": "Thread limit must be a whole number from 1 to 150."})
             with lock:
                 if state["busy"]: return self.send(409, {"error": "A scan is already running"})
-                state.update(busy=True, error=None, status="Starting scan…")
-            threading.Thread(target=scan, daemon=True).start()
+                state.update(busy=True, error=None, max_threads=max_threads, status="Starting scan…")
+            threading.Thread(target=scan, args=(max_threads,), daemon=True).start()
             self.send(202, {"status": "started"})
 
     try:
