@@ -39,3 +39,8 @@ node_modules/
 /ui/dist/
 /test-results/
 /playwright-report/
+/build/
+/dist/
+/*.spec
+/assets/PersonalScan.iconset/
+/assets/PersonalScan.icns
