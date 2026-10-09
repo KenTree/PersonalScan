@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 from settings import load_config
 from scanner import demo_threads, digest_thread
 from providers import gmail_service, read_threads, LocalAI
+from file_manager_ui import FileManagerDialog
 
 RESOURCE_ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 
@@ -469,6 +470,8 @@ class MainWindow(QMainWindow):
         title = QLabel("PersonalScan"); title.setStyleSheet("font-size: 26px; font-weight: 600;")
         heading.addWidget(title); heading.addStretch()
         self.settings_button = button("Settings…", self.settings)
+        self.files_button = button("File Manager…", self.file_manager)
+        heading.addWidget(self.files_button)
         heading.addWidget(self.settings_button); layout.addLayout(heading)
         layout.addWidget(QLabel("Your Gmail, organized into the threads worth your attention."))
         controls = QHBoxLayout()
@@ -542,6 +545,10 @@ class MainWindow(QMainWindow):
         if not self.worker:
             SettingsDialog(self).exec()
 
+    def file_manager(self):
+        if not self.worker:
+            FileManagerDialog(self, self.store).exec()
+
     def authorize_current(self):
         if self.account.currentData() is None and len(self.store.config["gmail_accounts"]) > 1:
             QMessageBox.information(self, "Choose an account", "Select one Gmail account to authorize it, or use Authorize selected in Settings.")
@@ -566,7 +573,7 @@ class MainWindow(QMainWindow):
         if self.worker:
             return
         self.worker = worker
-        for widget in [self.scan_button, self.account, self.limit, self.ai, self.settings_button, self.authorize_button]:
+        for widget in [self.scan_button, self.account, self.limit, self.ai, self.settings_button, self.authorize_button, self.files_button]:
             widget.setEnabled(False)
         self.settings_action.setEnabled(False)
         self.cancel_button.setEnabled(True)
@@ -631,7 +638,7 @@ class MainWindow(QMainWindow):
         worker = self.worker
         self.worker = None
         worker.wait(); worker.deleteLater()
-        for widget in [self.scan_button, self.account, self.limit, self.ai, self.settings_button, self.authorize_button]:
+        for widget in [self.scan_button, self.account, self.limit, self.ai, self.settings_button, self.authorize_button, self.files_button]:
             widget.setEnabled(True)
         self.settings_action.setEnabled(True); self.cancel_button.setEnabled(False)
         if self.close_pending:
