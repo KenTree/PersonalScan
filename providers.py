@@ -51,9 +51,10 @@ def gmail_service(credentials_path, authorize=False, account_id="default", expec
     keyring.set_password(SERVICE, auth_key(account_id), creds.to_json())
     return service
 
-def read_threads(service, days, limit, progress):
+def read_threads(service, days, limit, progress, failure_details=None):
     found, page = [], None
     while len(found) < limit:
+        progress(f"Finding threads… {len(found)} found")
         response = service.users().threads().list(userId="me", q=f"newer_than:{days}d -in:spam -in:trash -category:social -category:promotions",
                     maxResults=min(100, limit-len(found)), pageToken=page).execute(num_retries=2)
         found.extend(response.get("threads", []))
@@ -68,6 +69,8 @@ def read_threads(service, days, limit, progress):
         except Exception:
             # Avoid logging provider exception text, which may contain message metadata.
             failures.append(entry["id"])
+            if failure_details is not None:
+                failure_details.append(dict(thread_id=entry["id"], reason="Gmail could not retrieve this thread after retries."))
     return threads, len(failures), bool(page)
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
