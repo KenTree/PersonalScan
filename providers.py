@@ -78,7 +78,8 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         raise RuntimeError("Redirect from local model blocked.")
 
 class LocalAI:
-    def __init__(self, model):
+    def __init__(self, model, cancelled=None):
+        self.cancelled = cancelled or (lambda: False)
         if not model or "cloud" in model.lower() or "/" in model or not all(c.isalnum() or c in "._:-" for c in model):
             raise RuntimeError("Use a downloaded local model name, not a cloud model or URL.")
         executable = shutil.which("ollama")
@@ -93,6 +94,7 @@ class LocalAI:
         self.process = subprocess.Popen([executable, "serve"], env=env, stdout=self.log, stderr=self.log)
         try:
             for _ in range(100):
+                if self.cancelled(): raise RuntimeError("Operation cancelled.")
                 if self.process.poll() is not None: raise RuntimeError("Local Ollama process could not start.")
                 try:
                     self.request("/api/version", None); break
@@ -104,6 +106,7 @@ class LocalAI:
         except Exception:
             self.close(); raise
     def request(self, path, payload):
+        if self.cancelled(): raise RuntimeError("Operation cancelled.")
         data = json.dumps(payload).encode() if payload is not None else None
         req = urllib.request.Request(self.base + path, data=data, headers={"Content-Type": "application/json"})
         with self.opener.open(req, timeout=120 if path == "/api/chat" else 2) as response:

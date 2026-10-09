@@ -66,7 +66,44 @@ stops between requests; an in-flight Google or model request must finish first.
 ```sh
 QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest test_desktop
 .venv/bin/python -m unittest test_scanner test_accounts
+QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest test_file_manager
 ```
 
 `app.py` and `ui/` are retained as legacy development tools. The desktop bundle
 does not include or run them.
+
+## Local AI File Manager (testing)
+
+Open **File Manager** from the desktop window. Choose personal folders with
+**+ Add folder**, set a minimum number of days since modification (90 by default),
+and click **Review with local AI**. Downloads and Desktop are offered initially;
+scanning only starts when requested. Folder choices are stored in private desktop
+settings. The model is the local Ollama model configured in Settings.
+
+The inventory inspects filenames, paths, byte sizes, modification dates, and
+filesystem access timestamps; it does not read file contents. Older screenshots,
+schoolwork-related filenames/folders, and Downloads files become candidates.
+Hidden files, symbolic links, system/library/build folders, application/document
+packages, cloud placeholders, private key/database file types, and filenames
+suggesting sensitive or important records are skipped. These exclusions are
+heuristics, not a complete classification of important files.
+
+The inventory is bounded at 5,000 regular files and local AI analysis at 40
+candidates by default (adjustable up to 200), preferring the oldest candidates.
+Coverage and analysis limits and unreadable folders are reported. Results appear
+under **Suggested for review**, **Keep**, and **Review failures**, including facts
+supporting each model suggestion. Invalid or incomplete model output produces
+review failures rather than fabricated recommendations. The app never deletes,
+moves, or renames reviewed files; **Reveal in Finder** lets you inspect them.
+
+An old modification date does not establish when a file was downloaded or whether
+it is still useful. Filesystem access dates can reflect automated activity rather
+than human use. The app cannot determine whether schoolwork was actually
+submitted, or prove that a file was never used again. Local AI recommendations
+are tentative, with the original metadata available for your review.
+
+File review uses an owned Ollama process with cloud features disabled. Only
+filenames, relative paths, sizes, and computed facts reach the local model. No
+cloud API is used, and the feature works without Gmail authorization. Cancel and
+closing the review window interrupt the review and stop its owned model server,
+including a pending inference request. Review results stay in memory.
