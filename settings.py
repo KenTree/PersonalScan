@@ -30,4 +30,3 @@ def load_config(path):
         seen.add(account_id)
     config["gmail_accounts"] = [{"id": account["id"], "label": account["label"], "email": account.get("email", "")} for account in accounts]
     return config
-
