@@ -7,6 +7,7 @@ import threading
 import time
 from pathlib import Path
 import tempfile
+import textwrap
 import unittest
 from unittest.mock import patch, MagicMock
 
@@ -19,6 +20,61 @@ APP = QApplication.instance() or QApplication([])
 
 
 class DesktopTests(unittest.TestCase):
+    def test_process_exit_disposes_dialogs_before_python_shutdown(self):
+        script = textwrap.dedent('''
+            import sys
+            import tempfile
+            from unittest.mock import patch
+            from PySide6.QtCore import QCoreApplication, QEvent, QTimer
+            from PySide6.QtWidgets import QDialog
+            from shiboken6 import isValid
+            import desktop
+
+            windows, errors = [], []
+            original_exec = QDialog.exec
+
+            def dismiss(dialog):
+                QTimer.singleShot(0, dialog.reject)
+                return original_exec(dialog)
+
+            class Window(desktop.MainWindow):
+                def show(self):
+                    windows.append(self)
+                    super().show()
+                    QTimer.singleShot(0, self.exercise)
+
+                def exercise(self):
+                    try:
+                        for _ in range(3):
+                            self.settings()
+                            self.file_manager()
+                            settings = desktop.SettingsDialog(self)
+                            settings.edit_rules('mentor_emails', 'Mentors')
+                            QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+                            assert not settings.findChildren(desktop.RuleListDialog)
+                            settings.deleteLater()
+                            QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+                            assert not self.findChildren(QDialog), 'Closed dialogs accumulated'
+                    except BaseException as error:
+                        errors.append(repr(error))
+                    finally:
+                        self.close()
+
+            with tempfile.TemporaryDirectory() as root:
+                with patch.object(sys, 'argv', ['desktop.py', '--demo', '--data-dir', root]), \\
+                     patch.object(desktop, 'MainWindow', Window), \\
+                     patch.object(QDialog, 'exec', dismiss):
+                    assert desktop.main() == 0
+                assert not errors, errors
+                assert windows and not isValid(windows[0]), 'Window survived Qt shutdown'
+            print('Clean shutdown')
+        ''')
+        env = {**os.environ, "QT_QPA_PLATFORM": os.environ.get("PERSONALSCAN_TEST_PLATFORM", "offscreen")}
+        result = subprocess.run([os.sys.executable, "-c", script], cwd=Path(__file__).parent,
+                                env=env, capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("Clean shutdown", result.stdout)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.store = Store(Path(self.temp.name) / "data")
