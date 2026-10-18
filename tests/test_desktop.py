@@ -70,7 +70,7 @@ class DesktopTests(unittest.TestCase):
             print('Clean shutdown')
         ''')
         env = {**os.environ, "QT_QPA_PLATFORM": os.environ.get("PERSONALSCAN_TEST_PLATFORM", "offscreen")}
-        result = subprocess.run([os.sys.executable, "-c", script], cwd=Path(__file__).parent,
+        result = subprocess.run([os.sys.executable, "-c", script], cwd=Path(__file__).resolve().parents[1],
                                 env=env, capture_output=True, text=True, timeout=30)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("Clean shutdown", result.stdout)

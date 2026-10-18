@@ -12,7 +12,7 @@ class DashboardHTTP(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.proc = subprocess.Popen([sys.executable, "app.py", "--demo", "--no-browser", "--port", "0"],
-                                    cwd=Path(__file__).resolve().parent, stdout=subprocess.PIPE, text=True)
+                                    cwd=Path(__file__).resolve().parents[1], stdout=subprocess.PIPE, text=True)
         cls.proc.stdout.readline()
         cls.base, cls.token = cls.proc.stdout.readline().strip().split("/#token=")
         cls.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
