@@ -388,9 +388,12 @@ class SettingsDialog(QDialog):
 
     def edit_rules(self, key, title):
         dialog = RuleListDialog(self, title, self.rule_values[key], emails=key == "mentor_emails")
-        if dialog.exec() == QDialog.DialogCode.Accepted:
-            self.rule_values[key] = dialog.values
-            self.fields[key].setText(f"Edit list… ({len(dialog.values)})")
+        try:
+            if dialog.exec() == QDialog.DialogCode.Accepted:
+                self.rule_values[key] = dialog.values
+                self.fields[key].setText(f"Edit list… ({len(dialog.values)})")
+        finally:
+            dialog.deleteLater()
 
     def add_row(self, account):
         item = QTreeWidgetItem([account["label"], account["email"]])
@@ -549,11 +552,19 @@ class MainWindow(QMainWindow):
 
     def settings(self):
         if not self.worker:
-            SettingsDialog(self).exec()
+            dialog = SettingsDialog(self)
+            try:
+                dialog.exec()
+            finally:
+                dialog.deleteLater()
 
     def file_manager(self):
         if not self.worker:
-            FileManagerDialog(self, self.store).exec()
+            dialog = FileManagerDialog(self, self.store)
+            try:
+                dialog.exec()
+            finally:
+                dialog.deleteLater()
 
     def authorize_current(self):
         if self.account.currentData() is None and len(self.store.config["gmail_accounts"]) > 1:
@@ -731,6 +742,10 @@ def main():
         window = MainWindow(store, demo=args.demo)
     except (OSError, ValueError) as error:
         QMessageBox.critical(None, "PersonalScan setup", str(error)); return 1
+    # Qt still processes DeferredDelete events at aboutToQuit. Dispose the
+    # widget tree there, while Python callbacks and Qt are both alive, rather
+    # than leaving dialogs/buttons to PySide's interpreter-exit cleanup.
+    app.aboutToQuit.connect(window.deleteLater)
     window.show()
     return app.exec()
 
