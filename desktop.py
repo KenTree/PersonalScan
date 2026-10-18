@@ -27,6 +27,7 @@ from settings import load_config
 from scanner import demo_threads, digest_thread
 from providers import gmail_service, read_threads, LocalAI
 from file_manager_ui import FileManagerDialog
+from appearance import install_theme
 
 RESOURCE_ROOT = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 
@@ -284,6 +285,7 @@ class RuleListDialog(QDialog):
         row.addWidget(add); layout.addLayout(row)
         layout.addWidget(button("Remove selected", self.remove_selected))
         self.error = QLabel(); self.error.setWordWrap(True)
+        self.error.setProperty("appearance", "error")
         self.error.setTextFormat(Qt.TextFormat.PlainText); layout.addWidget(self.error)
         layout.addWidget(QLabel("Changes are applied when you save Settings. Double-click an entry to edit it."))
         controls = QDialogButtonBox()
@@ -467,13 +469,14 @@ class MainWindow(QMainWindow):
         central = QWidget(); self.setCentralWidget(central)
         layout = QVBoxLayout(central); layout.setContentsMargins(24, 20, 24, 20); layout.setSpacing(12)
         heading = QHBoxLayout()
-        title = QLabel("PersonalScan"); title.setStyleSheet("font-size: 26px; font-weight: 600;")
+        title = QLabel("PersonalScan"); title.setProperty("appearance", "title")
         heading.addWidget(title); heading.addStretch()
         self.settings_button = button("Settings…", self.settings)
         self.files_button = button("File Manager…", self.file_manager)
         heading.addWidget(self.files_button)
         heading.addWidget(self.settings_button); layout.addLayout(heading)
-        layout.addWidget(QLabel("Your Gmail, organized into the threads worth your attention."))
+        subtitle = QLabel("Your Gmail, organized into the threads worth your attention.")
+        subtitle.setProperty("appearance", "subtitle"); layout.addWidget(subtitle)
         controls = QHBoxLayout()
         controls.addWidget(QLabel("Gmail account"))
         self.account = QComboBox(); self.account.setMinimumWidth(280)
@@ -491,11 +494,13 @@ class MainWindow(QMainWindow):
         self.authorize_button = button("Authorize Gmail…", self.authorize_current); row.addWidget(self.authorize_button)
         row.addStretch(); layout.addLayout(row)
         self.status = QLabel("Ready. Choose an account and start a scan."); self.status.setWordWrap(True)
+        self.status.setProperty("appearance", "status")
         self.status.setTextFormat(Qt.TextFormat.PlainText)
         layout.addWidget(self.status)
         self.progress = QProgressBar(); self.progress.setRange(0, 100); self.progress.setValue(0)
         layout.addWidget(self.progress)
         self.last_scan = QLabel("No completed scan yet."); layout.addWidget(self.last_scan)
+        self.last_scan.setProperty("appearance", "muted")
         self.tabs = QTabWidget(); self.tables = {}
         for key, title in [("scanned", "Threads scanned"), ("notable", "Notable threads"), ("excluded", "Excluded threads"), ("failed", "Retrieval failures")]:
             table = QTreeWidget(); table.setHeaderLabels(["Thread" if key == "failed" else "Subject", "Gmail account", "Reason" if key == "failed" else "Sender", "Category / reason"])
@@ -511,6 +516,7 @@ class MainWindow(QMainWindow):
         splitter = QSplitter(Qt.Orientation.Vertical); splitter.addWidget(self.tabs); splitter.addWidget(self.detail)
         splitter.setSizes([330, 220]); layout.addWidget(splitter, 1)
         footer = QLabel("Gmail read-only · Processing on this Mac · Email images and HTML are never loaded")
+        footer.setProperty("appearance", "muted")
         layout.addWidget(footer)
         self.refresh_accounts()
         self.account.currentIndexChanged.connect(self.clear_results)
@@ -714,6 +720,7 @@ def main():
             parser.error("Authorization helper requires credentials and an account ID.")
         return authorization_helper(args.credentials, args.account_id, args.expected_email)
     app = QApplication(sys.argv[:1]); app.setApplicationName("PersonalScan"); app.setOrganizationName("PersonalScan")
+    install_theme(app)
     root = args.data_dir or Path.home() / "Library" / "Application Support" / "PersonalScan"
     try:
         store = Store(root)
