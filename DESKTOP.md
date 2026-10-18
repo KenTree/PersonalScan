@@ -3,6 +3,13 @@
 PersonalScan uses native Qt desktop widgets. It runs the Gmail scanner in a
 background thread, with no local HTTP server or browser dashboard.
 
+The desktop appearance follows macOS light or dark mode, including changes made
+while the app is open. The scanner, Settings, rule editors, and File Manager share
+coordinated colors, highlighted selections, keyboard focus outlines, and readable
+result panels. Appearance changes do not alter scanning or file review behavior.
+Run from source or rebuild the app bundle to see updated styling; an existing
+bundle retains the version it was built with.
+
 ## Run and build
 
 ```sh
