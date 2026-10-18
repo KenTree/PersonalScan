@@ -71,10 +71,16 @@ stops between requests; an in-flight Google or model request must finish first.
 ## Development verification
 
 ```sh
-QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest test_desktop
-.venv/bin/python -m unittest test_scanner test_accounts
-QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest test_file_manager
+QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest tests.test_desktop
+.venv/bin/python -m unittest tests.test_scanner tests.test_accounts
+QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest tests.test_file_manager
 ```
+
+All Python tests and the Playwright dashboard checks live in `tests/`. Run the
+complete Python suite from the repository root with
+`QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest discover -s tests`.
+The legacy HTTP tests require the frontend assets in `ui/dist/` (`npm run build`).
+Browser checks still use `npm run test:ui`.
 
 `app.py` and `ui/` are retained as legacy development tools. The desktop bundle
 does not include or run them.
