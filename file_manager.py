@@ -14,6 +14,7 @@ PACKAGES = {".app", ".bundle", ".framework", ".photoslibrary", ".photolibrary", 
 PRIVATE_SUFFIXES = {".key", ".pem", ".p12", ".pfx", ".kdbx", ".db", ".sqlite", ".sqlite3"}
 RECORD_NAMES = re.compile(r"(?:tax|receipt|invoice|passport|certificate|transcript|diploma|medical|insurance|contract|thesis|dissertation|credential|secret|password)", re.I)
 SCHOOL_NAMES = re.compile(r"(?:homework|assignment|lecture|syllabus|worksheet|problem[ _-]?set|submission|submitted|course|school)", re.I)
+HOMEWORK_NAMES = re.compile(r"(?:homework|assignment|worksheet|problem[ _-]?set|submission|submitted|\bhw[ _-]?\d)", re.I)
 SCREENSHOT_NAMES = re.compile(r"(?:screen[ _-]?shot|screenshot|screen[ _-]?capture)", re.I)
 DOWNLOAD_TYPES = {".pdf", ".doc", ".docx", ".ppt", ".pptx", ".txt", ".png", ".jpg", ".jpeg", ".webp", ".zip", ".dmg", ".pkg"}
 
@@ -76,15 +77,24 @@ def inventory(roots, min_age_days=90, max_files=5000, max_candidates=40,
                         if getattr(metadata, "st_flags", 0) & getattr(stat, "SF_DATALESS", 0):
                             continue
                         age = max(0, int((now - metadata.st_mtime) / 86400))
-                        if age < min_age_days or full.suffix.lower() in PRIVATE_SUFFIXES or RECORD_NAMES.search(entry.name):
+                        is_screenshot = bool(SCREENSHOT_NAMES.search(entry.name))
+                        relative_name = str(full.relative_to(path))
+                        is_homework = bool(HOMEWORK_NAMES.search(relative_name) or HOMEWORK_NAMES.search(path.name))
+                        homework_stale = is_homework and now - max(metadata.st_mtime, metadata.st_atime) > 5 * 86400
+                        if (age < min_age_days and not is_screenshot and not homework_stale) or full.suffix.lower() in PRIVATE_SUFFIXES or RECORD_NAMES.search(entry.name):
                             if visited >= max_files: break
                             continue
-                        facts = {"old_modified": f"Last modified {age} days ago (threshold: {min_age_days} days)."}
-                        is_screenshot = full.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"} and SCREENSHOT_NAMES.search(entry.name)
+                        facts = {"old_modified": f"Last modified {age} days ago (general age threshold: {min_age_days} days)."}
+                        automatic_review = None
                         if is_screenshot:
-                            facts["screenshot_name"] = "Filename resembles a screenshot. Image contents were not read."
+                            facts["screenshot_name"] = "Filename contains a screenshot label. File contents were not read."
+                            automatic_review = "Screenshot filename: automatically flagged for review regardless of age."
                         if SCHOOL_NAMES.search(str(full.relative_to(path))) or SCHOOL_NAMES.search(path.name):
                             facts["school_name"] = "Filename or folder contains a schoolwork-related word. Submission status is unknown."
+                        if homework_stale:
+                            facts["homework_inactive"] = "Homework filename or folder; neither modified nor accessed for more than 5 days. Submission status is unknown."
+                            if not automatic_review:
+                                automatic_review = "Homework untouched for more than 5 days: review whether this local copy is still needed. Submission and cloud backup status are unknown."
                         if any(part.casefold() == "downloads" for part in full.parts[:-1]) and full.suffix.lower() in DOWNLOAD_TYPES:
                             facts["downloads_folder"] = "Located in a Downloads folder. Download date is unknown."
                         if len(facts) > 1:
@@ -94,7 +104,8 @@ def inventory(roots, min_age_days=90, max_files=5000, max_candidates=40,
                             candidates.append({"id": str(len(candidates)), "path": str(full), "folder": str(path),
                                                "name": entry.name, "relative_path": str(full.relative_to(path)),
                                                "size": metadata.st_size, "modified": metadata.st_mtime,
-                                               "accessed": metadata.st_atime, "age_days": age, "facts": facts})
+                                               "accessed": metadata.st_atime, "age_days": age, "facts": facts,
+                                               "automatic_review": automatic_review})
                         if visited >= max_files:
                             break
             except OSError:
@@ -103,8 +114,10 @@ def inventory(roots, min_age_days=90, max_files=5000, max_candidates=40,
             break
     # Prefer the oldest candidates; keep the analysis bounded and disclose limits.
     candidates.sort(key=lambda candidate: candidate["modified"])
-    limited = len(candidates) > max_candidates
-    candidates = candidates[:max_candidates]
+    automatic = [candidate for candidate in candidates if candidate["automatic_review"]]
+    ai_candidates = [candidate for candidate in candidates if not candidate["automatic_review"]]
+    limited = len(ai_candidates) > max_candidates
+    candidates = automatic + ai_candidates[:max_candidates]
     for index, candidate in enumerate(candidates):
         candidate["id"] = str(index)
     return {"candidates": candidates, "errors": errors, "checked": visited,
@@ -158,13 +171,30 @@ def review_files(roots, model, min_age_days, max_candidates, progress, cancelled
     result = inventory(roots, min_age_days=min_age_days, max_candidates=max_candidates, progress=progress, cancelled=cancelled)
     result.update(review=[], kept=[], analysis_errors=[])
     candidates = result.pop("candidates")
+    for candidate in candidates:
+        if candidate["automatic_review"]:
+            evidence = ["screenshot_name"] if "screenshot_name" in candidate["facts"] else ["school_name", "homework_inactive"]
+            result["review"].append({**candidate, "decision": "review", "reason": candidate["automatic_review"],
+                                     "evidence": evidence, "source": "Automatic review rule"})
+    candidates = [candidate for candidate in candidates if not candidate["automatic_review"]]
+    result["review_bytes"] = sum(entry["size"] for entry in result["review"])
     if not candidates:
-        progress(100, f"Finished. {result['checked']} files checked; no old screenshot, schoolwork, or download candidates found.")
+        result["finished"] = datetime.now(timezone.utc).isoformat()
+        progress(100, f"Finished. {result['checked']} files checked; {len(result['review'])} files automatically suggested for review.")
         return result
     check_cancelled(cancelled)
     progress(25, f"Starting local AI to review {len(candidates)} candidates…")
     os.environ["PATH"] = os.pathsep.join([os.environ.get("PATH", ""), "/opt/homebrew/bin", "/usr/local/bin", "/Applications/Ollama.app/Contents/Resources"])
-    ai = LocalAI(model, cancelled=cancelled)
+    try:
+        ai = LocalAI(model, cancelled=cancelled)
+    except Exception:
+        check_cancelled(cancelled)
+        if not result["review"]:
+            raise
+        result["analysis_errors"].extend({**candidate, "reason": "Local AI could not start. No AI recommendation made."} for candidate in candidates)
+        result["finished"] = datetime.now(timezone.utc).isoformat()
+        progress(100, f"Finished. {len(result['review'])} files automatically suggested for review; local AI was unavailable for other candidates.")
+        return result
     ai_ready(ai)
     try:
         for start in range(0, len(candidates), 4):
