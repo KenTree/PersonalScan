@@ -8,7 +8,7 @@ import re
 
 DEFAULTS = dict(mentor_emails=[], riot_domains=["studio.example"],
                 bank_domains=["bank.example", "cards.bank.example", "otherbank.example"],
-                lookback_days=14, max_threads=40, model="qwen2.5:3b")
+                lookback_days=14, max_threads=40, model="llama3.1:8b-instruct-q4_K_M")
 
 @dataclass
 class Mail:
