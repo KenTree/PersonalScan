@@ -73,7 +73,7 @@ class FileManagerDialog(QDialog):
         layout.setContentsMargins(24, 20, 24, 20); layout.setSpacing(12)
         heading = QLabel("File Manager"); heading.setProperty("appearance", "title")
         layout.addWidget(heading)
-        intro = QLabel("Local AI suggests older screenshots, schoolwork, and downloads for your review. Files are never deleted or moved.")
+        intro = QLabel("Screenshots are automatically flagged. Homework untouched for more than 5 days is flagged. Local AI reviews other older schoolwork and downloads. Files are never deleted or moved.")
         intro.setProperty("appearance", "subtitle")
         intro.setWordWrap(True); layout.addWidget(intro)
         row = QHBoxLayout()
@@ -87,7 +87,7 @@ class FileManagerDialog(QDialog):
         self.remove_button = QPushButton("Remove selected"); self.remove_button.clicked.connect(self.remove_folder); actions.addWidget(self.remove_button)
         row.addLayout(actions); layout.addLayout(row)
         options = QHBoxLayout()
-        options.addWidget(QLabel("Not modified for at least (days)"))
+        options.addWidget(QLabel("Other files: minimum age (days)"))
         self.age = QSpinBox(); self.age.setRange(1, 3650); self.age.setValue(90); options.addWidget(self.age)
         options.addWidget(QLabel("Max files to ask AI about"))
         self.limit = QSpinBox(); self.limit.setRange(1, 200); self.limit.setValue(40); options.addWidget(self.limit)
@@ -227,7 +227,7 @@ class FileManagerDialog(QDialog):
         entry = row.data(0, Qt.ItemDataRole.UserRole)
         escape = lambda value: html.escape(str(value))
         content = f"<h3>{escape(entry.get('name', Path(entry['path']).name))}</h3><p>{escape(entry['path'])}</p>"
-        content += f"<p><b>Local AI suggestion:</b> {escape(entry['reason'])}</p>" if "decision" in entry else f"<p>{escape(entry['reason'])}</p>"
+        content += f"<p><b>Review suggestion:</b> {escape(entry['reason'])}</p>" if "decision" in entry else f"<p>{escape(entry['reason'])}</p>"
         if "modified" in entry:
             content += f"<p>Modified: {escape(datetime.fromtimestamp(entry['modified']).strftime('%b %d, %Y %I:%M %p'))}<br>Filesystem access timestamp: {escape(datetime.fromtimestamp(entry['accessed']).strftime('%b %d, %Y %I:%M %p'))}</p>"
         for key, fact in entry.get("facts", {}).items():
