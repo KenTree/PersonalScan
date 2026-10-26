@@ -93,9 +93,21 @@ and click **Review with local AI**. Downloads and Desktop are offered initially;
 scanning only starts when requested. Folder choices are stored in private desktop
 settings. The model is the local Ollama model configured in Settings.
 
+The default model is `llama3.1:8b-instruct-q4_K_M` (Llama 3.1 8B Instruct,
+Q4_K_M, approximately 4.9 GB of weights). Install it with
+`ollama pull llama3.1:8b-instruct-q4_K_M`. PersonalScan uses an 8,192-token
+context for email and file analysis to bound additional memory use. On Apple
+Silicon, CPU and GPU share unified memory; model weights, the context cache,
+and runtime buffers all consume that memory. GPU residency can be checked
+with `ollama ps` while inference is running.
+
 The inventory inspects filenames, paths, byte sizes, modification dates, and
-filesystem access timestamps; it does not read file contents. Older screenshots,
-schoolwork-related filenames/folders, and Downloads files become candidates.
+filesystem access timestamps; it does not read file contents. Screenshot-labeled
+filenames (case insensitive, any extension) are automatically suggested for review
+regardless of age. Homework/assignment-related filenames or folders are automatically
+suggested when both modification and access timestamps are more than five days old.
+These rules run without AI and bypass the general age setting and AI candidate cap.
+Other older schoolwork and Downloads files become local AI candidates.
 Hidden files, symbolic links, system/library/build folders, application/document
 packages, cloud placeholders, private key/database file types, and filenames
 suggesting sensitive or important records are skipped. These exclusions are
@@ -105,7 +117,7 @@ The inventory is bounded at 5,000 regular files and local AI analysis at 40
 candidates by default (adjustable up to 200), preferring the oldest candidates.
 Coverage and analysis limits and unreadable folders are reported. Results appear
 under **Suggested for review**, **Keep**, and **Review failures**, including facts
-supporting each model suggestion. Invalid or incomplete model output produces
+supporting each suggestion. Automatic rules do not establish submission or cloud backup status. Invalid or incomplete model output produces
 review failures rather than fabricated recommendations. The app never deletes,
 moves, or renames reviewed files; **Reveal in Finder** lets you inspect them.
 
