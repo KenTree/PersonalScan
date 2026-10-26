@@ -10,7 +10,7 @@
   ],
   "lookback_days": 14,
   "max_threads": 40,
-  "model": "qwen2.5:3b",
+  "model": "llama3.1:8b-instruct-q4_K_M",
   "gmail_accounts": [
     {
       "id": "default",

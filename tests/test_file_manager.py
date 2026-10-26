@@ -50,6 +50,42 @@ class FileManagerTests(unittest.TestCase):
         self.assertEqual(screenshot.stat().st_atime, before.st_atime)
         self.assertEqual(result["errors"], [])
 
+    def test_screenshots_ignore_age_extension_and_ai_limit(self):
+        desktop = self.root / "Desktop"
+        desktop.mkdir()
+        for name in ("Screenshot today.png", "SCREENSHOT notes.pdf", "Screenshot archive.heic"):
+            self.file("Desktop/" + name, age=0)
+        result = inventory([desktop], now=self.now, max_candidates=1)
+        self.assertEqual(len(result["candidates"]), 3)
+        self.assertFalse(result["analysis_limited"])
+        with patch("file_manager.LocalAI") as model:
+            result = review_files([desktop], "test", 90, 1, lambda *args: None, lambda: False)
+        model.assert_not_called()
+        self.assertEqual(len(result["review"]), 3)
+        self.assertTrue(all(e["source"] == "Automatic review rule" for e in result["review"]))
+
+    def test_automatic_reviews_survive_ai_startup_failure(self):
+        self.file("Screenshot today.png", age=0)
+        self.file("download.pdf")
+        with patch("file_manager.LocalAI", side_effect=RuntimeError("Model unavailable")):
+            result = review_files([self.root], "test", 90, 40, lambda *args: None, lambda: False)
+        self.assertEqual([entry["name"] for entry in result["review"]], ["Screenshot today.png"])
+        self.assertEqual(len(result["analysis_errors"]), 1)
+        self.assertGreater(result["review_bytes"], 0)
+
+    def test_homework_requires_more_than_five_days_without_access_or_modification(self):
+        stale = self.file("assignment-old.pdf", age=5.01)
+        self.file("homework-boundary.pdf", age=5)
+        self.file("homework-recent.pdf", age=4)
+        accessed = self.file("worksheet-accessed.pdf", age=20)
+        os.utime(accessed, (self.now - 86400, accessed.stat().st_mtime))
+        modified = self.file("assignment-edited.pdf", age=1)
+        os.utime(modified, (self.now - 20 * 86400, modified.stat().st_mtime))
+        folder = self.file("Homework/answer.pdf", age=6)
+        result = inventory([self.root], now=self.now)
+        self.assertEqual({e["path"] for e in result["candidates"]}, {str(stale.resolve()), str(folder.resolve())})
+        self.assertTrue(all(e["automatic_review"] for e in result["candidates"]))
+
     def test_links_cannot_extend_selected_folder_and_overlapping_roots_deduplicate(self):
         candidate = self.file("course/homework.pdf")
         outside = Path(self.temp.name) / "outside"; outside.mkdir()
@@ -60,7 +96,7 @@ class FileManagerTests(unittest.TestCase):
         self.assertEqual([e["path"] for e in result["candidates"]], [str(candidate.resolve())])
 
     def test_inventory_limits_and_missing_folders_are_disclosed(self):
-        for i in range(5): self.file(f"assignment{i}.pdf", age=100 + i)
+        for i in range(5): self.file(f"download{i}.pdf", age=100 + i)
         result = inventory([self.root], now=self.now, max_files=2, max_candidates=1)
         self.assertEqual(result["checked"], 2)
         self.assertTrue(result["inventory_limited"])
@@ -102,7 +138,8 @@ class FileManagerTests(unittest.TestCase):
             with self.assertRaises(ValueError): analyze_batch(self.ai(values), [candidate])
 
     def test_failed_ai_reviews_are_visible_and_files_are_preserved(self):
-        candidate = self.candidate()
+        self.file("download.pdf")
+        candidate = inventory([self.root], now=self.now)["candidates"][0]
         ai = MagicMock(); ai.request.side_effect = ValueError("invalid model output")
         statuses = []
         with patch("file_manager.LocalAI", return_value=ai):
@@ -114,7 +151,7 @@ class FileManagerTests(unittest.TestCase):
         self.assertIn("AI review failures", statuses[-1])
 
     def test_cancel_interrupts_inventory_and_always_closes_model(self):
-        self.file("Screenshot old.png")
+        self.file("download.pdf")
         with self.assertRaises(ReviewCancelled): inventory([self.root], cancelled=lambda: True)
         ai = MagicMock()
         cancellation = [False]
